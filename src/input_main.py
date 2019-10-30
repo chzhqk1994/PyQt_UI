@@ -28,15 +28,18 @@ class MainWindow(QtWidgets.QMainWindow):
         super(MainWindow, self).__init__()  # call the inherited classes __init__ method
         uic.loadUi('main.ui', self)
 
-        self.db_ip_text.setText(actual_param['dbAddress'])
-        self.db_user_text.setText(actual_param['dbUser'])
-        self.db_passwd_text.setText(actual_param['dbPasswd'])
-        self.redis_ip_text.setText(actual_param['redisAddress'])
-        self.redis_port_text.setText(actual_param['redisUser'])
-        self.redis_db_name_text.setText(actual_param['redisPasswd'])
+        self.set_ui_text(actual_param)
 
         self.save_bt.clicked.connect(self.save)
         self.reset_bt.clicked.connect(self.reset)
+
+    def set_ui_text(self, dict):
+        self.db_ip_text.setText(dict['dbAddress'])
+        self.db_user_text.setText(dict['dbUser'])
+        self.db_passwd_text.setText(dict['dbPasswd'])
+        self.redis_ip_text.setText(dict['redisAddress'])
+        self.redis_port_text.setText(dict['redisUser'])
+        self.redis_db_name_text.setText(dict['redisPasswd'])
 
     def save(self):
         actual_param['dbAddress'] = self.db_ip_text.toPlainText()
@@ -57,12 +60,7 @@ class MainWindow(QtWidgets.QMainWindow):
             with open('parameters.json', 'w') as param_file:
                 json.dump(default_param, param_file)
 
-        self.db_ip_text.setText(default_param['dbAddress'])
-        self.db_user_text.setText(default_param['dbUser'])
-        self.db_passwd_text.setText(default_param['dbPasswd'])
-        self.redis_ip_text.setText(default_param['redisAddress'])
-        self.redis_port_text.setText(default_param['redisUser'])
-        self.redis_db_name_text.setText(default_param['redisPasswd'])
+        self.set_ui_text(default_param)
 
 
 if __name__ == '__main__':

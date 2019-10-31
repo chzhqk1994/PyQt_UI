@@ -21,8 +21,6 @@ else:
         actual_param = json.load(param_file)
 
 
-# (host='127.0.0.1', port=6379, db=0)
-#             logger.info("REDIS 접속 성공")
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()  # call the inherited classes __init__ method

@@ -3,9 +3,11 @@ import cv2
 import time
 
 from PyQt5.QtWidgets import QApplication, QFileDialog, QWidget
-from PyQt5.QtGui import QImage, QPixmap
-from PyQt5.QtCore import QTimer
+from PyQt5.QtGui import QImage, QPixmap, QPainter, QBrush, QColor, QPainterPath
+from PyQt5.QtCore import QTimer, QRect, QPoint, pyqtSignal, QSize
 from PyQt5 import uic
+
+roi_coord = []
 
 form_class1 = uic.loadUiType("main.ui")[0]
 
@@ -32,6 +34,45 @@ class App(QWidget):
                                                        "All Files (*);;Python Files (*.py)", options=options)
 
 
+class Drawer(QWidget):
+    global roi_coord
+    newPoint = pyqtSignal(QPoint)
+
+    def __init__(self, roi_label, parent=None):
+        QWidget.__init__(self, parent)
+        self.begin = QPoint()
+        self.end = QPoint()
+        self.path = QPainterPath()
+        self.roi_label = roi_label
+
+    def paintEvent(self, event):
+        qp = QPainter(self)
+        br = QBrush(QColor(100, 10, 10, 40))
+        qp.setBrush(br)
+        qp.drawRect(QRect(self.begin, self.end))
+
+    def mousePressEvent(self, event):
+        self.begin = event.pos()
+        self.end = event.pos()
+        self.update()
+        roi_coord.clear()
+
+        # beginning coord of Rect
+        roi_coord.append([event.pos().x(), event.pos().y()])
+
+    def mouseMoveEvent(self, event):
+        self.end = event.pos()
+        self.newPoint.emit(event.pos())
+        self.update()
+
+    def mouseReleaseEvent(self, event):
+        # End coord of Rect
+        roi_coord.append([event.pos().x(), event.pos().y()])
+
+    def sizeHint(self):
+        return QSize(self.roi_label.geometry().getRect()[2], self.roi_label.geometry().getRect()[3])
+
+
 class MainWindow(QWidget, form_class1):
     def __init__(self):
         # call QWidget constructor
@@ -42,6 +83,9 @@ class MainWindow(QWidget, form_class1):
         self.fileName = ''
 
         self.find_video_bt.clicked.connect(self.findVideoFile)
+
+        drawer = Drawer(self, self.roi_label)
+        drawer.newPoint.connect(lambda p: self.posi_label.setText('Coordinates: ( %d : %d )' % (p.x(), p.y())))
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.viewCam)
@@ -74,7 +118,6 @@ class MainWindow(QWidget, form_class1):
         ret, frame = self.cap.read()
 
         if ret:
-
             # get image infos
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             height, width, channel = frame.shape
@@ -86,6 +129,32 @@ class MainWindow(QWidget, form_class1):
             height = self.image_label.geometry().getRect()[3]
 
             self.image_label.setPixmap(QPixmap.fromImage(qImg).scaled(width, height))
+
+            # ROI 사각형이 그려졌다면 if 문 실행
+            if len(roi_coord) == 2:
+                # ROI 값을 추출
+                YMAX = roi_coord[1][1]
+                YMIN = roi_coord[0][1]
+                XMAX = roi_coord[1][0]
+                XMIN = roi_coord[0][0]
+
+                # frame 을 자르기 전에 label widget 의 크기에 맞춰 resize 한다
+                lb_width = self.image_label.geometry().getRect()[2]
+                lb_height = self.image_label.geometry().getRect()[3]
+                frame = cv2.resize(frame, dsize=(lb_width, lb_height), interpolation=cv2.INTER_AREA)
+
+                # resize 된 프레임을 crop
+                frame = frame[YMIN:YMAX, XMIN:XMAX]
+
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                height, width, channel = frame.shape
+                step = channel * width
+                qImg = QImage(frame.data, width, height, step, QImage.Format_RGB888)
+
+                # label 에 ROI 영역의 이미지 출력
+                lb_width = self.image_label_2.geometry().getRect()[2]
+                lb_height = self.image_label_2.geometry().getRect()[3]
+                self.image_label_2.setPixmap(QPixmap.fromImage(qImg).scaled(lb_width, lb_height))
 
         else:
             self.timer.stop()
